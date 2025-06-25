@@ -134,10 +134,6 @@
   let touchLeft = false;
   let touchRight = false;
 
-  // Sounds (simple beep)
-  const beepCatch = new Audio('data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAgD4AAAB9AAACABAAZGF0YQAAAAA=');
-  const beepMiss = new Audio('data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAgD4AAAB9AAACABAAZGF0YQAAAAA=');
-
   // Responsive canvas sizing
   function resizeCanvas() {
     const container = document.getElementById('gameContainer');
@@ -216,7 +212,6 @@
       ) {
         score++;
         blobs.splice(i, 1);
-        beepCatch.play().catch(() => {}); // play catch sound
         updateScoreboard();
         // Speed adjustment with some random difficulty
         if (score % 5 === 0 && blobSpeed < maxSpeed) {
@@ -227,7 +222,6 @@
       else if (blob.y - blob.radius > baseHeight) {
         lives--;
         blobs.splice(i, 1);
-        beepMiss.play().catch(() => {}); // play miss sound
         updateScoreboard();
         if (lives <= 0) {
           endGame();
@@ -283,15 +277,15 @@
     if (e.key === 'ArrowLeft' || e.key.toLowerCase() === 'a') leftPressed = false;
   });
 
-  // Touch controls
-  leftBtn.addEventListener('touchstart', e => { e.preventDefault(); touchLeft = true; });
-  leftBtn.addEventListener('touchend', e => { e.preventDefault(); touchLeft = false; });
-  rightBtn.addEventListener('touchstart', e => { e.preventDefault(); touchRight = true; });
-  rightBtn.addEventListener('touchend', e => { e.preventDefault(); touchRight = false; });
+  // Touch controls with passive:false to allow preventDefault
+  leftBtn.addEventListener('touchstart', e => { e.preventDefault(); touchLeft = true; }, { passive: false });
+  leftBtn.addEventListener('touchend', e => { e.preventDefault(); touchLeft = false; }, { passive: false });
+  rightBtn.addEventListener('touchstart', e => { e.preventDefault(); touchRight = true; }, { passive: false });
+  rightBtn.addEventListener('touchend', e => { e.preventDefault(); touchRight = false; }, { passive: false });
 
   // Prevent scrolling on touch buttons
-  leftBtn.addEventListener('touchmove', e => e.preventDefault());
-  rightBtn.addEventListener('touchmove', e => e.preventDefault());
+  leftBtn.addEventListener('touchmove', e => e.preventDefault(), { passive: false });
+  rightBtn.addEventListener('touchmove', e => e.preventDefault(), { passive: false });
 
   // Create blobs periodically
   setInterval(() => {
