@@ -1,166 +1,115 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no" />
-<title>$FLEM Catch Game</title>
-<style>
-  body {
-    margin: 0;
-    background: #1a1a1a;
-    color: #fff;
-    font-family: 'Comic Sans MS', cursive, sans-serif;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: flex-start;
-    height: 100vh;
-    overflow: hidden;
-    -webkit-tap-highlight-color: transparent;
-  }
-  #gameContainer {
-    position: relative;
-    max-width: 400px;
-    width: 90vw;
-  }
-  canvas {
-    background: #0b3d0b;
-    display: block;
-    border: 3px solid #55ff55;
-    border-radius: 10px;
-    width: 100% !important;
-    height: auto !important;
-    touch-action: none;
-    user-select: none;
-  }
-  #scoreboard {
-    text-align: center;
-    font-size: 20px;
-    margin-top: 10px;
-  }
-  #gameOver {
-    text-align: center;
-    font-size: 32px;
-    color: #ff5555;
-    display: none;
-    margin-top: 20px;
-  }
-  #restartBtn {
-    display: none;
-    margin: 10px auto;
-    padding: 10px 25px;
-    font-size: 20px;
-    background: #55ff55;
-    color: #000;
-    border: none;
-    border-radius: 8px;
-    cursor: pointer;
-    display: block;
-  }
-  #restartBtn:hover {
-    background: #44dd44;
-  }
-  #touchControls {
-    margin-top: 15px;
-    display: flex;
-    justify-content: center;
-    gap: 40px;
-  }
-  .touchBtn {
-    background: #55ff55;
-    border-radius: 8px;
-    padding: 15px 25px;
-    font-size: 24px;
-    color: #000;
-    user-select: none;
-    touch-action: manipulation;
-    cursor: pointer;
-    width: 80px;
-    text-align: center;
-    font-weight: bold;
-    box-shadow: 0 0 8px #44dd44;
-  }
-  .touchBtn:active {
-    background: #44dd44;
-    box-shadow: 0 0 12px #22bb22;
-  }
-</style>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>$FLEM Catch Game</title>
+  <style>
+    body {
+      margin: 0;
+      background: #1a1a1a;
+      color: #fff;
+      font-family: 'Comic Sans MS', cursive, sans-serif;
+      overflow: hidden;
+      text-align: center;
+    }
+
+    #gameCanvas {
+      background: #0b3d0b;
+      display: block;
+      margin: 20px auto;
+      border: 3px solid #55ff55;
+      border-radius: 10px;
+    }
+
+    #scoreboard {
+      font-size: 24px;
+      margin-top: 10px;
+    }
+
+    #gameOver {
+      font-size: 32px;
+      color: #ff5555;
+      display: none;
+      margin-top: 20px;
+    }
+
+    #restartBtn {
+      display: none;
+      margin: 10px auto;
+      padding: 10px 25px;
+      font-size: 20px;
+      background: #55ff55;
+      color: #000;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+    }
+
+    #mobileControls {
+      margin: 20px;
+    }
+
+    #mobileControls button {
+      font-size: 32px;
+      padding: 10px 20px;
+      margin: 10px;
+      background-color: #55ff55;
+      border: none;
+      border-radius: 10px;
+      color: #000;
+    }
+
+    #mobileControls button:active {
+      background-color: #44dd44;
+    }
+  </style>
 </head>
 <body>
 
-<div id="gameContainer">
-  <canvas id="gameCanvas" width="400" height="600"></canvas>
-  <div id="scoreboard">Score: 0 | Lives: 3</div>
-  <div id="gameOver">GAME OVER</div>
-  <button id="restartBtn">Play Again</button>
-  <div id="touchControls">
-    <div id="leftBtn" class="touchBtn">◀️</div>
-    <div id="rightBtn" class="touchBtn">▶️</div>
-  </div>
+<canvas id="gameCanvas" width="400" height="600"></canvas>
+<div id="scoreboard">Score: 0 | Lives: 3</div>
+<div id="gameOver">GAME OVER</div>
+<button id="restartBtn">Play Again</button>
+
+<div id="mobileControls">
+  <button id="leftBtn">⬅️</button>
+  <button id="rightBtn">➡️</button>
 </div>
 
 <script>
-(() => {
   const canvas = document.getElementById('gameCanvas');
   const ctx = canvas.getContext('2d');
-  const scoreboard = document.getElementById('scoreboard');
-  const gameOverText = document.getElementById('gameOver');
-  const restartBtn = document.getElementById('restartBtn');
-  const leftBtn = document.getElementById('leftBtn');
-  const rightBtn = document.getElementById('rightBtn');
 
-  const baseWidth = 400;
-  const baseHeight = 600;
-
-  // Basket properties
   const basketWidth = 80;
   const basketHeight = 20;
-  let basketX = (baseWidth - basketWidth) / 2;
+  let basketX = (canvas.width - basketWidth) / 2;
 
-  // Blob properties
   const blobRadius = 15;
   let blobs = [];
 
-  // Game state
   let score = 0;
   let lives = 3;
   let blobSpeed = 3;
-  const maxSpeed = 8;
+  let maxBlobSpeed = 10;
   let gameOver = false;
 
-  // Movement flags
   let rightPressed = false;
   let leftPressed = false;
-  let touchLeft = false;
-  let touchRight = false;
 
-  // Responsive canvas sizing
-  function resizeCanvas() {
-    const container = document.getElementById('gameContainer');
-    const containerWidth = container.clientWidth;
-    canvas.style.width = containerWidth + 'px';
-    canvas.style.height = (containerWidth * (baseHeight / baseWidth)) + 'px';
-  }
-
-  window.addEventListener('resize', resizeCanvas);
-  resizeCanvas();
-
-  // Create new blob at random X position
   function createBlob() {
-    const x = Math.random() * (baseWidth - blobRadius * 2) + blobRadius;
-    blobs.push({ x, y: -blobRadius, radius: blobRadius });
+    const x = Math.random() * (canvas.width - blobRadius * 2) + blobRadius;
+    blobs.push({ x: x, y: -blobRadius, radius: blobRadius });
   }
 
-  // Draw basket with glow
   function drawBasket() {
     ctx.fillStyle = '#55ff55';
-    ctx.fillRect(basketX, baseHeight - basketHeight - 10, basketWidth, basketHeight);
+    ctx.fillRect(basketX, canvas.height - basketHeight - 10, basketWidth, basketHeight);
     ctx.strokeStyle = '#aaffaa';
     ctx.lineWidth = 3;
-    ctx.strokeRect(basketX, baseHeight - basketHeight - 10, basketWidth, basketHeight);
+    ctx.strokeRect(basketX, canvas.height - basketHeight - 10, basketWidth, basketHeight);
   }
 
-  // Draw blobs (green snot-like)
   function drawBlobs() {
     blobs.forEach(blob => {
       const gradient = ctx.createRadialGradient(blob.x, blob.y, blob.radius / 2, blob.x, blob.y, blob.radius);
@@ -171,7 +120,6 @@
       ctx.arc(blob.x, blob.y, blob.radius, 0, Math.PI * 2);
       ctx.fill();
 
-      // Shine
       ctx.fillStyle = 'rgba(255,255,255,0.6)';
       ctx.beginPath();
       ctx.arc(blob.x - 5, blob.y - 5, blob.radius / 3, 0, Math.PI * 2);
@@ -179,49 +127,33 @@
     });
   }
 
-  // Clear canvas for redraw
-  function clear() {
-    ctx.clearRect(0, 0, baseWidth, baseHeight);
-  }
-
-  // Move basket by pressed keys or touch
   function moveBasket() {
     const speed = 7;
-    if ((rightPressed || touchRight) && basketX < baseWidth - basketWidth) {
+    if (rightPressed && basketX < canvas.width - basketWidth) {
       basketX += speed;
-      if (basketX > baseWidth - basketWidth) basketX = baseWidth - basketWidth;
     }
-    if ((leftPressed || touchLeft) && basketX > 0) {
+    if (leftPressed && basketX > 0) {
       basketX -= speed;
-      if (basketX < 0) basketX = 0;
     }
   }
 
-  // Update blob positions & collisions
   function updateBlobs() {
-    blobs.forEach((blob, i) => {
-      // Move down with random speed variation for difficulty fluctuation
-      const variation = (Math.sin(score / 3 + i) * 0.7);
-      blob.y += Math.min(blobSpeed + variation, maxSpeed);
-
-      // Check catch
+    blobs.forEach((blob, index) => {
+      blob.y += blobSpeed;
       if (
-        blob.y + blob.radius > baseHeight - basketHeight - 10 &&
+        blob.y + blob.radius > canvas.height - basketHeight - 10 &&
         blob.x > basketX &&
         blob.x < basketX + basketWidth
       ) {
         score++;
-        blobs.splice(i, 1);
+        blobs.splice(index, 1);
         updateScoreboard();
-        // Speed adjustment with some random difficulty
-        if (score % 5 === 0 && blobSpeed < maxSpeed) {
+        if (score % 5 === 0 && blobSpeed < maxBlobSpeed) {
           blobSpeed += 0.5;
         }
-      }
-      // Missed blob
-      else if (blob.y - blob.radius > baseHeight) {
+      } else if (blob.y - blob.radius > canvas.height) {
         lives--;
-        blobs.splice(i, 1);
+        blobs.splice(index, 1);
         updateScoreboard();
         if (lives <= 0) {
           endGame();
@@ -230,75 +162,81 @@
     });
   }
 
-  // Update scoreboard text
   function updateScoreboard() {
-    scoreboard.textContent = `Score: ${score} | Lives: ${lives}`;
+    document.getElementById('scoreboard').textContent = `Score: ${score} | Lives: ${lives}`;
   }
 
-  // End game handler
-  function endGame() {
-    gameOver = true;
-    gameOverText.style.display = 'block';
-    restartBtn.style.display = 'block';
+  function clear() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
   }
 
-  // Game loop
   function gameLoop() {
     if (gameOver) return;
-    clear();
-    drawBasket();
-    drawBlobs();
-    moveBasket();
-    updateBlobs();
+    try {
+      clear();
+      drawBasket();
+      drawBlobs();
+      moveBasket();
+      updateBlobs();
+    } catch (e) {
+      console.error(e);
+      endGame();
+    }
     requestAnimationFrame(gameLoop);
   }
 
-  // Restart game reset
+  function endGame() {
+    gameOver = true;
+    document.getElementById('gameOver').style.display = 'block';
+    document.getElementById('restartBtn').style.display = 'block';
+  }
+
   function restartGame() {
     score = 0;
     lives = 3;
     blobSpeed = 3;
     blobs = [];
-    basketX = (baseWidth - basketWidth) / 2;
     gameOver = false;
-    gameOverText.style.display = 'none';
-    restartBtn.style.display = 'none';
+    document.getElementById('gameOver').style.display = 'none';
+    document.getElementById('restartBtn').style.display = 'none';
     updateScoreboard();
     gameLoop();
   }
 
-  // Keyboard event listeners
-  window.addEventListener('keydown', e => {
-    if (e.key === 'ArrowRight' || e.key.toLowerCase() === 'd') rightPressed = true;
-    if (e.key === 'ArrowLeft' || e.key.toLowerCase() === 'a') leftPressed = true;
-  });
-  window.addEventListener('keyup', e => {
-    if (e.key === 'ArrowRight' || e.key.toLowerCase() === 'd') rightPressed = false;
-    if (e.key === 'ArrowLeft' || e.key.toLowerCase() === 'a') leftPressed = false;
+  // Keyboard controls
+  document.addEventListener('keydown', e => {
+    if (e.key === 'ArrowRight') rightPressed = true;
+    if (e.key === 'ArrowLeft') leftPressed = true;
   });
 
-  // Touch controls with passive:false to allow preventDefault
-  leftBtn.addEventListener('touchstart', e => { e.preventDefault(); touchLeft = true; }, { passive: false });
-  leftBtn.addEventListener('touchend', e => { e.preventDefault(); touchLeft = false; }, { passive: false });
-  rightBtn.addEventListener('touchstart', e => { e.preventDefault(); touchRight = true; }, { passive: false });
-  rightBtn.addEventListener('touchend', e => { e.preventDefault(); touchRight = false; }, { passive: false });
+  document.addEventListener('keyup', e => {
+    if (e.key === 'ArrowRight') rightPressed = false;
+    if (e.key === 'ArrowLeft') leftPressed = false;
+  });
 
-  // Prevent scrolling on touch buttons
-  leftBtn.addEventListener('touchmove', e => e.preventDefault(), { passive: false });
-  rightBtn.addEventListener('touchmove', e => e.preventDefault(), { passive: false });
+  // Mobile controls
+  document.getElementById('leftBtn').addEventListener('touchstart', e => {
+    e.preventDefault(); leftPressed = true;
+  });
+  document.getElementById('leftBtn').addEventListener('touchend', e => {
+    e.preventDefault(); leftPressed = false;
+  });
+  document.getElementById('rightBtn').addEventListener('touchstart', e => {
+    e.preventDefault(); rightPressed = true;
+  });
+  document.getElementById('rightBtn').addEventListener('touchend', e => {
+    e.preventDefault(); rightPressed = false;
+  });
 
-  // Create blobs periodically
+  // Blob spawn control
   setInterval(() => {
-    if (!gameOver) createBlob();
-  }, 900);
+    if (!gameOver && blobs.length < 7) createBlob();
+  }, 1200);
 
-  // Restart button
-  restartBtn.addEventListener('click', restartGame);
+  document.getElementById('restartBtn').addEventListener('click', restartGame);
 
-  // Start game
   updateScoreboard();
   gameLoop();
-})();
 </script>
 
 </body>
