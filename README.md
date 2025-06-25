@@ -2,38 +2,35 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>$FLEM Catch Game</title>
   <style>
     body {
       margin: 0;
-      background: #111;
+      background: #1a1a1a;
       color: #fff;
       font-family: 'Comic Sans MS', cursive, sans-serif;
       overflow: hidden;
-      text-align: center;
     }
-
-    #gameCanvas {
+    canvas {
       background: #0b3d0b;
+      display: block;
+      margin: 20px auto;
       border: 3px solid #55ff55;
       border-radius: 10px;
-      display: block;
-      margin: 10px auto;
     }
-
     #scoreboard, #leaderboard {
+      text-align: center;
       font-size: 20px;
       margin-top: 10px;
     }
-
     #gameOver {
+      text-align: center;
       font-size: 32px;
       color: #ff5555;
       display: none;
       margin-top: 20px;
     }
-
     #restartBtn {
       display: none;
       margin: 10px auto;
@@ -44,10 +41,24 @@
       border: none;
       border-radius: 8px;
       cursor: pointer;
+      display: block;
     }
-
     #restartBtn:hover {
       background: #44dd44;
+    }
+    .mobile-controls {
+      display: flex;
+      justify-content: center;
+      margin: 10px;
+      gap: 20px;
+    }
+    .control-btn {
+      font-size: 24px;
+      padding: 10px 20px;
+      border-radius: 10px;
+      background: #55ff55;
+      color: #000;
+      border: none;
     }
   </style>
 </head>
@@ -59,18 +70,48 @@
 <div id="gameOver">GAME OVER</div>
 <button id="restartBtn">Play Again</button>
 
+<div class="mobile-controls">
+  <button class="control-btn" id="leftBtn">⬅️</button>
+  <button class="control-btn" id="rightBtn">➡️</button>
+</div>
+
 <script>
   const canvas = document.getElementById('gameCanvas');
   const ctx = canvas.getContext('2d');
-  let basketX = (canvas.width - 80) / 2;
-  let rightPressed = false, leftPressed = false, touchX = null;
-  const basketWidth = 80, basketHeight = 20, blobRadius = 15;
-  let blobs = [], score = 0, lives = 3, blobSpeed = 3, gameOver = false;
-  let highScore = parseInt(localStorage.getItem('highScore')) || 0;
-  let powerUps = [], powerUpActive = false, powerUpEndTime = 0;
 
-  const catchSound = new Audio("https://cdn.pixabay.com/download/audio/2022/03/15/audio_c9c49a6141.mp3?filename=video-game-win-201408.mp3");
-  const missSound = new Audio("https://cdn.pixabay.com/download/audio/2022/03/28/audio_ba67d49d83.mp3?filename=videogame-death-sound-43894.mp3");
+  const basketWidth = 80;
+  const basketHeight = 20;
+  let basketX = (canvas.width - basketWidth) / 2;
+
+  const blobRadius = 15;
+  let blobs = [];
+  let powerUps = [];
+
+  let score = 0;
+  let lives = 3;
+  let highScore = localStorage.getItem('highScore') || 0;
+
+  let rightPressed = false;
+  let leftPressed = false;
+
+  let blobSpeed = 3;
+  let maxBlobSpeed = 7;
+  let gameOver = false;
+
+  let doubleScoreActive = false;
+  let slowMotionActive = false;
+
+  function createBlob() {
+    const x = Math.random() * (canvas.width - blobRadius * 2) + blobRadius;
+    blobs.push({ x, y: -blobRadius, radius: blobRadius });
+  }
+
+  function createPowerUp() {
+    const types = ['slow', 'double'];
+    const type = types[Math.floor(Math.random() * types.length)];
+    const x = Math.random() * (canvas.width - 20) + 10;
+    powerUps.push({ x, y: -20, type });
+  }
 
   function drawBasket() {
     ctx.fillStyle = '#55ff55';
@@ -82,65 +123,70 @@
 
   function drawBlobs() {
     blobs.forEach(blob => {
-      const grad = ctx.createRadialGradient(blob.x, blob.y, blob.radius / 2, blob.x, blob.y, blob.radius);
-      grad.addColorStop(0, '#a3ff88');
-      grad.addColorStop(1, '#116611');
-      ctx.fillStyle = grad;
+      const gradient = ctx.createRadialGradient(blob.x, blob.y, blob.radius / 2, blob.x, blob.y, blob.radius);
+      gradient.addColorStop(0, '#a3ff88');
+      gradient.addColorStop(1, '#116611');
+      ctx.fillStyle = gradient;
       ctx.beginPath();
       ctx.arc(blob.x, blob.y, blob.radius, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = 'rgba(255,255,255,0.6)';
+      ctx.beginPath();
+      ctx.arc(blob.x - 5, blob.y - 5, blob.radius / 3, 0, Math.PI * 2);
       ctx.fill();
     });
   }
 
   function drawPowerUps() {
-    powerUps.forEach(pu => {
-      ctx.fillStyle = pu.type === 'slow' ? 'cyan' : 'yellow';
+    powerUps.forEach(p => {
+      ctx.fillStyle = p.type === 'slow' ? '#00ffff' : '#ffcc00';
       ctx.beginPath();
-      ctx.arc(pu.x, pu.y, 10, 0, Math.PI * 2);
+      ctx.arc(p.x, p.y, 12, 0, Math.PI * 2);
       ctx.fill();
     });
   }
 
   function moveBasket() {
-    const speed = 6;
+    const speed = 7;
     if (rightPressed && basketX < canvas.width - basketWidth) basketX += speed;
     if (leftPressed && basketX > 0) basketX -= speed;
   }
 
   function updateBlobs() {
-    blobs.forEach((blob, i) => {
+    blobs.forEach((blob, index) => {
       blob.y += blobSpeed;
       if (
         blob.y + blob.radius > canvas.height - basketHeight - 10 &&
         blob.x > basketX &&
         blob.x < basketX + basketWidth
       ) {
-        catchSound.play();
-        score++;
-        blobs.splice(i, 1);
-        if (score % 5 === 0 && blobSpeed < 8) blobSpeed += 0.5;
-        updateScoreboard();
+        score += doubleScoreActive ? 2 : 1;
+        blobs.splice(index, 1);
+        updateUI();
+        if (score % 5 === 0 && blobSpeed < maxBlobSpeed) {
+          blobSpeed += Math.random() > 0.5 ? 0.5 : -0.2;
+          blobSpeed = Math.max(2, Math.min(blobSpeed, maxBlobSpeed));
+        }
       } else if (blob.y - blob.radius > canvas.height) {
-        missSound.play();
         lives--;
-        blobs.splice(i, 1);
-        updateScoreboard();
+        blobs.splice(index, 1);
+        updateUI();
         if (lives <= 0) endGame();
       }
     });
   }
 
   function updatePowerUps() {
-    powerUps.forEach((pu, i) => {
-      pu.y += 2;
+    powerUps.forEach((p, i) => {
+      p.y += 2;
       if (
-        pu.y + 10 > canvas.height - basketHeight - 10 &&
-        pu.x > basketX &&
-        pu.x < basketX + basketWidth
+        p.y + 12 > canvas.height - basketHeight - 10 &&
+        p.x > basketX &&
+        p.x < basketX + basketWidth
       ) {
+        activatePowerUp(p.type);
         powerUps.splice(i, 1);
-        activatePowerUp(pu.type);
-      } else if (pu.y > canvas.height) {
+      } else if (p.y > canvas.height) {
         powerUps.splice(i, 1);
       }
     });
@@ -148,37 +194,24 @@
 
   function activatePowerUp(type) {
     if (type === 'slow') {
-      powerUpActive = true;
-      blobSpeed = Math.max(1, blobSpeed - 2);
-      powerUpEndTime = Date.now() + 5000;
-    } else if (type === 'bonus') {
-      score += 5;
-      updateScoreboard();
+      blobSpeed *= 0.5;
+      slowMotionActive = true;
+      setTimeout(() => {
+        blobSpeed *= 2;
+        slowMotionActive = false;
+      }, 4000);
+    }
+    if (type === 'double') {
+      doubleScoreActive = true;
+      setTimeout(() => {
+        doubleScoreActive = false;
+      }, 4000);
     }
   }
 
-  function updateScoreboard() {
+  function updateUI() {
     document.getElementById('scoreboard').textContent = `Score: ${score} | Lives: ${lives}`;
     document.getElementById('leaderboard').textContent = `High Score: ${Math.max(highScore, score)}`;
-  }
-
-  function endGame() {
-    gameOver = true;
-    document.getElementById('gameOver').style.display = 'block';
-    document.getElementById('restartBtn').style.display = 'block';
-    if (score > highScore) {
-      highScore = score;
-      localStorage.setItem('highScore', highScore);
-    }
-  }
-
-  function restartGame() {
-    score = 0; lives = 3; blobSpeed = 3; gameOver = false;
-    blobs = []; powerUps = [];
-    document.getElementById('gameOver').style.display = 'none';
-    document.getElementById('restartBtn').style.display = 'none';
-    updateScoreboard();
-    gameLoop();
   }
 
   function clear() {
@@ -194,25 +227,36 @@
     moveBasket();
     updateBlobs();
     updatePowerUps();
-    if (powerUpActive && Date.now() > powerUpEndTime) {
-      powerUpActive = false;
-      blobSpeed = Math.min(blobSpeed + 2, 8);
-    }
     requestAnimationFrame(gameLoop);
   }
 
-  function createBlob() {
-    const x = Math.random() * (canvas.width - blobRadius * 2) + blobRadius;
-    blobs.push({ x: x, y: -blobRadius, radius: blobRadius });
+  function endGame() {
+    gameOver = true;
+    if (score > highScore) {
+      highScore = score;
+      localStorage.setItem('highScore', highScore);
+    }
+    document.getElementById('gameOver').style.display = 'block';
+    document.getElementById('restartBtn').style.display = 'block';
+    updateUI();
   }
 
-  function createPowerUp() {
-    const x = Math.random() * (canvas.width - 20) + 10;
-    const type = Math.random() > 0.5 ? 'slow' : 'bonus';
-    powerUps.push({ x: x, y: -10, type });
+  function restartGame() {
+    score = 0;
+    lives = 3;
+    blobSpeed = 3;
+    blobs = [];
+    powerUps = [];
+    doubleScoreActive = false;
+    slowMotionActive = false;
+    gameOver = false;
+    document.getElementById('gameOver').style.display = 'none';
+    document.getElementById('restartBtn').style.display = 'none';
+    updateUI();
+    gameLoop();
   }
 
-  // Keyboard
+  // Keyboard controls
   document.addEventListener('keydown', e => {
     if (e.key === 'ArrowRight') rightPressed = true;
     if (e.key === 'ArrowLeft') leftPressed = true;
@@ -222,30 +266,26 @@
     if (e.key === 'ArrowLeft') leftPressed = false;
   });
 
-  // Touch Controls
-  canvas.addEventListener('touchstart', e => {
-    touchX = e.touches[0].clientX;
-  });
-  canvas.addEventListener('touchmove', e => {
-    const dx = e.touches[0].clientX - touchX;
-    basketX += dx * 0.2;
-    basketX = Math.max(0, Math.min(canvas.width - basketWidth, basketX));
-    touchX = e.touches[0].clientX;
-  });
+  // Touch controls
+  document.getElementById('leftBtn').addEventListener('touchstart', () => leftPressed = true);
+  document.getElementById('leftBtn').addEventListener('touchend', () => leftPressed = false);
+  document.getElementById('rightBtn').addEventListener('touchstart', () => rightPressed = true);
+  document.getElementById('rightBtn').addEventListener('touchend', () => rightPressed = false);
 
+  // Restart button
   document.getElementById('restartBtn').addEventListener('click', restartGame);
 
+  // Intervals
   setInterval(() => {
     if (!gameOver) createBlob();
-  }, 800);
-
+  }, 1000);
   setInterval(() => {
-    if (!gameOver && Math.random() < 0.3) createPowerUp();
-  }, 5000);
+    if (!gameOver && Math.random() < 0.4) createPowerUp();
+  }, 4000);
 
-  updateScoreboard();
+  updateUI();
   gameLoop();
 </script>
+
 </body>
 </html>
-
